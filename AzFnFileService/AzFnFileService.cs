@@ -54,7 +54,7 @@ namespace AzFnFileService
             {
 
                 log.Info("GET request received");
-                // parse query parameter
+                // parse query parameters
                 fs.Operation = req.GetQueryNameValuePairs()
                     .FirstOrDefault(q => string.Compare(q.Key, "op", true) == 0)
                     .Value?.ToLower();
