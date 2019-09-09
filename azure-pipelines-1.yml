@@ -7,7 +7,7 @@ trigger:
 - master
 
 pool:
-  vmImage: 'VS2017-Win2016t'
+  vmImage: 'VS2017-Win2016'
 
 variables:
   buildPlatform: 'Any CPU'
