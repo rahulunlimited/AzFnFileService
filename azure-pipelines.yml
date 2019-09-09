@@ -25,8 +25,8 @@ steps:
   inputs:
     rootFolderOrFile: "$(System.DefaultWorkingDirectory)/AzFnFileService/publish_output"
     includeRootFolder: false
-    archiveFile: "$(System.DefaultWorkingDirectory)/build$(Build.BuildId).zip"
+    archiveFile: "$(System.DefaultWorkingDirectory)/AzFnFileService.zip"
 - task: PublishBuildArtifacts@1
   inputs:
-    PathtoPublish: '$(System.DefaultWorkingDirectory)/build$(Build.BuildId).zip'
+    PathtoPublish: '$(System.DefaultWorkingDirectory)/AzFnFileService.zip'
     name: 'drop'
