@@ -31,8 +31,3 @@ steps:
   inputs:
     PathtoPublish: '$(System.DefaultWorkingDirectory)/AzFnFileService/AzFnFileService.zip'
     name: 'drop'
-
-- task: PublishPipelineArtifact@1
-  inputs:
-    targetPath: '$(Pipeline.Workspace)/AzFnFileService/AzFnFileService.zip'
-    artifact: 'FnAppZip'
