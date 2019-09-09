@@ -14,7 +14,12 @@ variables:
   buildConfiguration: 'Release'
 
 steps:
-
+- task: NuGetCommand@2
+  inputs:
+    command: 'restore'
+    restoreSolution: '**/*.sln'
+    feedsToUse: 'select'
+    vstsFeed: '744e9944-b20d-4469-9d2a-57eafc370d01'
 - task: VSBuild@1
   inputs:
     solution: '**/AzFnFileService.sln'
