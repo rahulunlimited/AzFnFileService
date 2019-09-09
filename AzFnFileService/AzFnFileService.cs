@@ -11,6 +11,7 @@ using Newtonsoft.Json;
 
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.File;
+using Microsoft.WindowsAzure.Storage.Blob;
 
 
 namespace AzFnFileService
@@ -21,18 +22,22 @@ namespace AzFnFileService
         private static string storageConnectionStr = System.Environment.GetEnvironmentVariable("StorageConnectionString");
         private static string fileshare = System.Environment.GetEnvironmentVariable("FileShare");
         private static TraceWriter log;
+        private static string TYPE_BLOB = "BLOB";
+        private static string TYPE_FILE = "FILE";
 
         public class FileService
         {
             public string Operation { get; set; }
             public string InputFolder { get; set; }
             public string File { get; set; }
+            public string Type { get; set; }
             public string TargetFolder { get; set; }
             public string Status { get; set; }
             public string Message { get; set; }
             public bool Exists { get; set; }
             public string Body { get; set; }
             public string PrefixDateTime { get; set; }
+            public string Container { get; set; }
         }
 
         [FunctionName("AzFnFileService")]
@@ -65,13 +70,20 @@ namespace AzFnFileService
 
                 fs.File = req.GetQueryNameValuePairs()
                     .FirstOrDefault(q => string.Compare(q.Key, "file", true) == 0)
-                    .Value?.ToLower();
+                    .Value;
 
+                fs.Type = req.GetQueryNameValuePairs()
+                    .FirstOrDefault(q => string.Compare(q.Key, "type", true) == 0)
+                    .Value?.ToLower();
+                if (fs.Type == null) fs.Type = TYPE_BLOB;
 
                 fs.TargetFolder = req.GetQueryNameValuePairs()
                     .FirstOrDefault(q => string.Compare(q.Key, "targetfolder", true) == 0)
                     .Value?.ToLower();
 
+                fs.Container = req.GetQueryNameValuePairs()
+                    .FirstOrDefault(q => string.Compare(q.Key, "container", true) == 0)
+                    .Value?.ToLower();
 
                 fs.PrefixDateTime = req.GetQueryNameValuePairs()
                     .FirstOrDefault(q => string.Compare(q.Key, "prefixdatetime", true) == 0)
@@ -97,7 +109,10 @@ namespace AzFnFileService
                             MoveFile(fs.InputFolder, fs.File, fs.TargetFolder, fs.PrefixDateTime);
                             break;
                         case "exist":
-                            fs.Exists = FileExists(fs.InputFolder, fs.File);
+                            if (fs.Type == TYPE_FILE)
+                                fs.Exists = FileExists(fs.InputFolder, fs.File);
+                            else
+                                fs.Exists = BlobExists(fs.Container, fs.InputFolder, fs.File);
                             break;
                         default:
                             fs.Operation = "Invalid";
@@ -268,6 +283,21 @@ namespace AzFnFileService
 
             return sourceFile.Exists() ? true : false;
 
+        }
+
+        static bool BlobExists(string strContainer, string strSourceFolderPath, string strSourceFileName)
+        {
+            log.Info("Checking if the file exists");
+            log.Info("Folder " + strSourceFolderPath);
+            log.Info("File : " + strSourceFileName);
+            string strPath = strSourceFolderPath + "/" + strSourceFileName;
+            CloudStorageAccount storageAccount = CloudStorageAccount.Parse(storageConnectionStr);
+            CloudBlobClient blobClient = storageAccount.CreateCloudBlobClient();
+            CloudBlobContainer container = blobClient.GetContainerReference(strContainer);
+            CloudBlockBlob blockBlob = container.GetBlockBlobReference(strPath);
+
+            log.Info(strPath);
+            return blockBlob.Exists() ? true : false;
         }
 
 
