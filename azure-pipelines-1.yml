@@ -14,10 +14,12 @@ variables:
   buildConfiguration: 'Release'
 
 steps:
-- task : VSBuild@1
+
+- task: VSBuild@1
   inputs:
-    solution : '**/AzFnFileService.sln'
-    configuration: '$(buildConfiguration)'
+    solution: '**/AzFnFileService.sln'
     platform: '$(buildPlatform)'
+    configuration: '$(buildConfiguration)'
+    restoreNugetPackages: true
     
 
