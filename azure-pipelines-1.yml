@@ -7,7 +7,7 @@ trigger:
 - master
 
 pool:
-  vmImage: 'ubuntu-latest'
+  vmImage: 'VS2017-Win2016t'
 
 variables:
   buildPlatform: 'Any CPU'
