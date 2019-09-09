@@ -16,7 +16,7 @@ variables:
 steps:
 - task : VSBuild@1
   inputs:
-    solution : '$(Build.SourceDirectory)/AzFnFileService.sln'
+    solution : '**/AzFnFileService.sln'
     configuration: '$(buildConfiguration)'
     platform: '$(buildPlatform)'
     
