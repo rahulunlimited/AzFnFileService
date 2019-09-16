@@ -27,7 +27,6 @@
     <Content Include="azuredeploy.parameters.json" />
     <None Include=".gitignore" />
     <None Include="Deploy-AzureResourceGroup.ps1" />
-    <None Include="Deployment.targets" />
   </ItemGroup>
   <Target Name="GetReferenceAssemblyPaths" />
 </Project>
