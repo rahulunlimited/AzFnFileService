@@ -43,6 +43,6 @@ steps:
     archiveFile: "$(System.DefaultWorkingDirectory)/AzFnFileService/AzFnFileService.zip"
 - task: PublishBuildArtifacts@1
   inputs:
-    PathtoPublish: 'AzFnFileService.zip'
+    PathtoPublish: 'AzFnFileService/AzFnFileService.zip'
     name: 'drop'
 
