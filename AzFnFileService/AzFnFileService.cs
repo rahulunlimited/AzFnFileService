@@ -100,7 +100,10 @@ namespace AzFnFileService
                     switch (fs.Operation)
                     {
                         case "copy":
-                            CopyFile(fs.InputFolder, fs.File, fs.TargetFolder);
+                            if (fs.Type == TYPE_FILE)
+                                CopyFile(fs.InputFolder, fs.File, fs.TargetFolder);
+                            else
+                                CopyBlob(fs.Container, fs.InputFolder, fs.File, fs.TargetFolder);
                             break;
                         case "delete":
                             DeleteFile(fs.InputFolder, fs.File);
@@ -287,7 +290,7 @@ namespace AzFnFileService
 
         static bool BlobExists(string strContainer, string strSourceFolderPath, string strSourceFileName)
         {
-            log.Info("Checking if the file exists");
+            log.Info("Checking if the blob exists");
             log.Info("Folder " + strSourceFolderPath);
             log.Info("File : " + strSourceFileName);
             string strPath = strSourceFolderPath + "/" + strSourceFileName;
@@ -300,6 +303,25 @@ namespace AzFnFileService
             return blockBlob.Exists() ? true : false;
         }
 
+        static bool CopyBlob(string strContainer, string strSourceFolderPath, string strSourceFileName, string strTargetFolderPath)
+        {
+            log.Info("Copy BLOB");
+            log.Info("Source Folder " + strSourceFolderPath);
+            log.Info("File : " + strSourceFileName);
+            log.Info("Target Folder " + strTargetFolderPath);
+            string strSrcPath = strSourceFolderPath + "/" + strSourceFileName;
+            string strTgtPath = strSourceFolderPath + "/" + strSourceFileName;
+            CloudStorageAccount storageAccount = CloudStorageAccount.Parse(storageConnectionStr);
+            CloudBlobClient blobClient = storageAccount.CreateCloudBlobClient();
+            CloudBlobContainer container = blobClient.GetContainerReference(strContainer);
+
+            CloudBlockBlob srcBlob = container.GetBlockBlobReference(strSrcPath);
+            CloudBlockBlob tgtBlob = container.GetBlockBlobReference(strTgtPath);
+
+            tgtBlob.StartCopy(srcBlob);
+
+            return tgtBlob.Exists() ? true : false;
+        }
 
 
     }
