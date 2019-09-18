@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Azure.WebJobs.Host;
+using System.IO;
 
 using Newtonsoft.Json;
 
@@ -97,34 +98,56 @@ namespace AzFnFileService
                 if (fs.Operation != null)
                 {
                     log.Info("Operation requested : " + fs.Operation);
-                    switch (fs.Operation)
+
+                    if (fs.Type == TYPE_FILE)
                     {
-                        case "copy":
-                            if (fs.Type == TYPE_FILE)
+                        switch (fs.Operation)
+                        {
+                            case "copy":
                                 CopyFile(fs.InputFolder, fs.File, fs.TargetFolder);
-                            else
-                                CopyBlob(fs.Container, fs.InputFolder, fs.File, fs.TargetFolder);
-                            break;
-                        case "delete":
-                            DeleteFile(fs.InputFolder, fs.File);
-                            break;
-                        case "move":
-                            MoveFile(fs.InputFolder, fs.File, fs.TargetFolder, fs.PrefixDateTime);
-                            break;
-                        case "exist":
-                            if (fs.Type == TYPE_FILE)
+                                break;
+                            case "delete":
+                                DeleteFile(fs.InputFolder, fs.File);
+                                break;
+                            case "move":
+                                MoveFile(fs.InputFolder, fs.File, fs.TargetFolder, fs.PrefixDateTime);
+                                break;
+                            case "exist":
                                 fs.Exists = FileExists(fs.InputFolder, fs.File);
-                            else
-                                fs.Exists = BlobExists(fs.Container, fs.InputFolder, fs.File);
-                            break;
-                        default:
-                            fs.Operation = "Invalid";
-                            break;
+                                break;
+                            default:
+                                fs.Operation = "Invalid";
+                                break;
+                        }
 
                     }
+                    else
+                    {
+                        switch (fs.Operation)
+                        {
+                            case "copy":
+                                fs.Message = CopyBlob(fs.Container, fs.InputFolder, fs.File, fs.TargetFolder);
+                                break;
+                            case "delete":
+                                //DeleteFile(fs.InputFolder, fs.File);
+                                fs.Message = "Delete operation not allowed now";
+                                break;
+                            case "move":
+                                fs.Message = MoveBlob(fs.Container, fs.InputFolder, fs.File, fs.TargetFolder, fs.PrefixDateTime);
+                                break;
+                            case "exist":
+                                fs.Exists = BlobExists(fs.Container, fs.InputFolder, fs.File);
+                                break;
+                            default:
+                                fs.Operation = "Invalid";
+                                break;
+
+                        }
+                    }
+
 
                     fs.Status = "Ok";
-                    fs.Message = "Completed";
+                    if (String.IsNullOrEmpty(fs.Message)) fs.Message = "Completed";
                 }
                 else
                 {
@@ -214,7 +237,7 @@ namespace AzFnFileService
             if (strPrefixDateTime == "y")
             {
                 log.Info("Appending the DateTime to File");
-                strdestFile = System.DateTime.Now.ToString("yyyyMMddHHmmss") + "_" + strSourceFileName;
+                strdestFile = AppendTimeStampToFile(strSourceFileName);
             }
             else
             {
@@ -303,14 +326,14 @@ namespace AzFnFileService
             return blockBlob.Exists() ? true : false;
         }
 
-        static bool CopyBlob(string strContainer, string strSourceFolderPath, string strSourceFileName, string strTargetFolderPath)
+        static string CopyBlob(string strContainer, string strSourceFolderPath, string strSourceFileName, string strTargetFolderPath)
         {
             log.Info("Copy BLOB");
             log.Info("Source Folder " + strSourceFolderPath);
             log.Info("File : " + strSourceFileName);
             log.Info("Target Folder " + strTargetFolderPath);
             string strSrcPath = strSourceFolderPath + "/" + strSourceFileName;
-            string strTgtPath = strSourceFolderPath + "/" + strSourceFileName;
+            string strTgtPath = strTargetFolderPath + "/" + strSourceFileName;
             CloudStorageAccount storageAccount = CloudStorageAccount.Parse(storageConnectionStr);
             CloudBlobClient blobClient = storageAccount.CreateCloudBlobClient();
             CloudBlobContainer container = blobClient.GetContainerReference(strContainer);
@@ -320,7 +343,55 @@ namespace AzFnFileService
 
             tgtBlob.StartCopy(srcBlob);
 
-            return tgtBlob.Exists() ? true : false;
+            if (tgtBlob.Exists())
+            {
+                return (strSourceFileName + " copied to " + strTargetFolderPath);
+            }
+            else
+            {
+                return ("BLOB not copied. Some issues. Please check.");
+            }
+        }
+
+        static string MoveBlob(string strContainer, string strSourceFolderPath, string strSourceFileName, string strTargetFolderPath, string strPrefixDateTime)
+        {
+            log.Info("Copy BLOB");
+            log.Info("Source Folder " + strSourceFolderPath);
+            log.Info("File : " + strSourceFileName);
+            log.Info("Target Folder " + strTargetFolderPath);
+            string strSrcPath = strSourceFolderPath + "/" + strSourceFileName;
+            string strTgtPath;
+
+            if (strPrefixDateTime == "y")
+                strTgtPath = strTargetFolderPath + "/" + AppendTimeStampToFile(strSourceFileName);
+            else
+                strTgtPath = strTargetFolderPath + "/" + strSourceFileName;
+
+            CloudStorageAccount storageAccount = CloudStorageAccount.Parse(storageConnectionStr);
+            CloudBlobClient blobClient = storageAccount.CreateCloudBlobClient();
+            CloudBlobContainer container = blobClient.GetContainerReference(strContainer);
+
+            CloudBlockBlob srcBlob = container.GetBlockBlobReference(strSrcPath);
+            CloudBlockBlob tgtBlob = container.GetBlockBlobReference(strTgtPath);
+
+            tgtBlob.StartCopy(srcBlob);
+
+            if (tgtBlob.Exists())
+            {
+                srcBlob.Delete();
+                return (strSourceFileName + " moved to " + strTgtPath);
+            }
+            else
+            {
+                return ("BLOB not moved. Some issues. Please check.");
+            }
+        }
+
+
+        static string AppendTimeStampToFile(string strFileName)
+        {
+            strFileName = Path.GetFileNameWithoutExtension(strFileName) + "_" + System.DateTime.Now.ToString("yyyyMMddHHTmmss") + Path.GetExtension(strFileName);
+            return strFileName;
         }
 
 
