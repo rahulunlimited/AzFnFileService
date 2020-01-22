@@ -75,7 +75,7 @@ namespace AzFnFileService
 
                 fs.Type = req.GetQueryNameValuePairs()
                     .FirstOrDefault(q => string.Compare(q.Key, "type", true) == 0)
-                    .Value?.ToLower();
+                    .Value?.ToUpper();
                 if (fs.Type == null) fs.Type = TYPE_BLOB;
 
                 fs.TargetFolder = req.GetQueryNameValuePairs()
@@ -99,7 +99,7 @@ namespace AzFnFileService
                 {
                     log.Info("Operation requested : " + fs.Operation);
 
-                    if (fs.Type == TYPE_FILE)
+                    if (fs.Type() == TYPE_FILE)
                     {
                         switch (fs.Operation)
                         {
