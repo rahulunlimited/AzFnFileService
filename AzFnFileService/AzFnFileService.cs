@@ -99,7 +99,7 @@ namespace AzFnFileService
                 {
                     log.Info("Operation requested : " + fs.Operation);
 
-                    if (fs.Type() == TYPE_FILE)
+                    if (fs.Type == TYPE_FILE)
                     {
                         switch (fs.Operation)
                         {
