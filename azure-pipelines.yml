@@ -17,10 +17,6 @@ steps:
     Contents: '**'
     TargetFolder: '$(Build.ArtifactStagingDirectory)/AzFnArmTemplate'
     OverWrite: true/
-- task: PublishBuildArtifacts@1
-  inputs:
-    pathToPublish: $(Build.ArtifactStagingDirectory)
-    artifactName: 'drop'
 
 - script: |
     dotnet restore
