@@ -7,7 +7,6 @@ using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Azure.WebJobs.Host;
 using System.IO;
-
 using Newtonsoft.Json;
 
 using Microsoft.WindowsAzure.Storage;
@@ -59,8 +58,19 @@ namespace AzFnFileService
             if (req.Method == HttpMethod.Get)
             {
 
+                var qs = System.Web.HttpUtility.ParseQueryString(req.RequestUri.Query);
+
                 log.Info("GET request received");
                 // parse query parameters
+                if (qs.Get("op") != null) fs.Operation ??= qs.Get("op").ToLower();
+                if (qs.Get("inputfolder") != null) fs.InputFolder ??= qs.Get("inputfolder").ToLower();
+                if (qs.Get("file") != null) fs.File = qs.Get("file").ToLower();
+                if (qs.Get("type") != null) fs.Type = qs.Get("type").ToUpper();
+                if (qs.Get("targetfolder") != null) fs.TargetFolder = qs.Get("targetfolder").ToLower();
+                if (qs.Get("container") != null) fs.Container = qs.Get("container").ToLower();
+                if (qs.Get("prefixdatetime") != null) fs.PrefixDateTime = qs.Get("prefixdatetime").ToLower();
+
+/*
                 fs.Operation = req.GetQueryNameValuePairs()
                     .FirstOrDefault(q => string.Compare(q.Key, "op", true) == 0)
                     .Value?.ToLower();
@@ -89,7 +99,7 @@ namespace AzFnFileService
                 fs.PrefixDateTime = req.GetQueryNameValuePairs()
                     .FirstOrDefault(q => string.Compare(q.Key, "prefixdatetime", true) == 0)
                     .Value?.ToLower();
-
+*/
             }
 
             try
@@ -113,7 +123,7 @@ namespace AzFnFileService
                                 MoveFile(fs.InputFolder, fs.File, fs.TargetFolder, fs.PrefixDateTime);
                                 break;
                             case "exist":
-                                fs.Exists = FileExists(fs.InputFolder, fs.File);
+                                fs.Exists = await FileExists(fs.InputFolder, fs.File);
                                 break;
                             default:
                                 fs.Operation = "Invalid";
@@ -126,17 +136,17 @@ namespace AzFnFileService
                         switch (fs.Operation)
                         {
                             case "copy":
-                                fs.Message = CopyBlob(fs.Container, fs.InputFolder, fs.File, fs.TargetFolder);
+                                fs.Message = await CopyBlob(fs.Container, fs.InputFolder, fs.File, fs.TargetFolder);
                                 break;
                             case "delete":
                                 //DeleteFile(fs.InputFolder, fs.File);
                                 fs.Message = "Delete operation not allowed now";
                                 break;
                             case "move":
-                                fs.Message = MoveBlob(fs.Container, fs.InputFolder, fs.File, fs.TargetFolder, fs.PrefixDateTime);
+                                fs.Message = await MoveBlob(fs.Container, fs.InputFolder, fs.File, fs.TargetFolder, fs.PrefixDateTime);
                                 break;
                             case "exist":
-                                fs.Exists = BlobExists(fs.Container, fs.InputFolder, fs.File);
+                                fs.Exists = await BlobExists(fs.Container, fs.InputFolder, fs.File);
                                 break;
                             default:
                                 fs.Operation = "Invalid";
@@ -203,7 +213,7 @@ namespace AzFnFileService
 
             log.Info("Source File : " + sourceFile.Name);
             log.Info("Target File : " + targetfolder.Name);
-            destFile.StartCopy(sourceFile);
+            destFile.StartCopyAsync(sourceFile);
             log.Info(sourceFile.Name + " copied to " + targetfolder.Name);
 
         }
@@ -246,8 +256,8 @@ namespace AzFnFileService
             CloudFileDirectory targetfolder = rootDir.GetDirectoryReference(strTargetFolderPath);
             CloudFile destFile = targetfolder.GetFileReference(strdestFile);
 
-            destFile.StartCopy(sourceFile);
-            sourceFile.DeleteIfExists();
+            destFile.StartCopyAsync(sourceFile);
+            sourceFile.DeleteIfExistsAsync();
             log.Info(sourceFile.Name + " copied to " + targetfolder.Name + " as " + destFile.Name);
 
 
@@ -276,7 +286,7 @@ namespace AzFnFileService
             {
                 sourceFile = rootDir.GetFileReference(strSourceFileName);
             }
-            sourceFile.DeleteIfExists();
+            sourceFile.DeleteIfExistsAsync();
             log.Info(sourceFile.Name + " deleted.");
 
 
@@ -284,7 +294,7 @@ namespace AzFnFileService
         }
 
 
-        static bool FileExists(string strSourceFolderPath, string strSourceFileName)
+        static async Task<bool> FileExists(string strSourceFolderPath, string strSourceFileName)
         {
             log.Info("Checking if the file exists");
             log.Info("Folder " + strSourceFolderPath);
@@ -307,11 +317,12 @@ namespace AzFnFileService
 
             log.Info(sourceFile.Uri.ToString());
 
-            return sourceFile.Exists() ? true : false;
+
+            return await sourceFile.ExistsAsync() ? true : false;
 
         }
 
-        static bool BlobExists(string strContainer, string strSourceFolderPath, string strSourceFileName)
+        static async Task<bool> BlobExists(string strContainer, string strSourceFolderPath, string strSourceFileName)
         {
             log.Info("Checking if the blob exists");
             log.Info("Folder " + strSourceFolderPath);
@@ -323,10 +334,10 @@ namespace AzFnFileService
             CloudBlockBlob blockBlob = container.GetBlockBlobReference(strPath);
 
             log.Info(strPath);
-            return blockBlob.Exists() ? true : false;
+            return await blockBlob.ExistsAsync() ? true : false;
         }
 
-        static string CopyBlob(string strContainer, string strSourceFolderPath, string strSourceFileName, string strTargetFolderPath)
+        static async Task<string> CopyBlob(string strContainer, string strSourceFolderPath, string strSourceFileName, string strTargetFolderPath)
         {
             log.Info("Copy BLOB");
             log.Info("Source Folder " + strSourceFolderPath);
@@ -341,9 +352,9 @@ namespace AzFnFileService
             CloudBlockBlob srcBlob = container.GetBlockBlobReference(strSrcPath);
             CloudBlockBlob tgtBlob = container.GetBlockBlobReference(strTgtPath);
 
-            tgtBlob.StartCopy(srcBlob);
+            await tgtBlob.StartCopyAsync(srcBlob);
 
-            if (tgtBlob.Exists())
+            if (await tgtBlob.ExistsAsync())
             {
                 return (strSourceFileName + " copied to " + strTargetFolderPath);
             }
@@ -353,7 +364,7 @@ namespace AzFnFileService
             }
         }
 
-        static string MoveBlob(string strContainer, string strSourceFolderPath, string strSourceFileName, string strTargetFolderPath, string strPrefixDateTime)
+        static async Task <string> MoveBlob(string strContainer, string strSourceFolderPath, string strSourceFileName, string strTargetFolderPath, string strPrefixDateTime)
         {
             log.Info("Copy BLOB");
             log.Info("Source Folder " + strSourceFolderPath);
@@ -374,11 +385,11 @@ namespace AzFnFileService
             CloudBlockBlob srcBlob = container.GetBlockBlobReference(strSrcPath);
             CloudBlockBlob tgtBlob = container.GetBlockBlobReference(strTgtPath);
 
-            tgtBlob.StartCopy(srcBlob);
+            await tgtBlob.StartCopyAsync(srcBlob);
 
-            if (tgtBlob.Exists())
+            if (await tgtBlob.ExistsAsync())
             {
-                srcBlob.Delete();
+                await srcBlob.DeleteAsync();
                 return (strSourceFileName + " moved to " + strTgtPath);
             }
             else
